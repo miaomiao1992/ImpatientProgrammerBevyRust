@@ -1,0 +1,94 @@
+bevy_book_game (workspace root: /Users/febinjohnjames/AIBodh/bevy_book_game)
+======================================================================
+
+Project Overview
+----------------
+- Rust crate `chapter2`; targets Bevy 0.17.2 with `bevy_procedural_tilemaps` 0.1.3.
+- Entry point (`src/main.rs`) configures `App::new()` with:
+  * `ClearColor` = white and `DefaultPlugins` customized:
+    - `AssetPlugin` rooted at `src/assets`.
+    - `WindowPlugin` primary window sized from map pixel dimensions, non-resizable.
+    - `ImagePlugin::default_nearest()` to avoid sprite blur.
+  * `ProcGenSimplePlugin::<Cartesian3D, Sprite>` to drive procedural tilemap WFC.
+  * Startup systems: `setup_camera` (spawns `Camera2d`) and `map::generate::setup_generator`.
+  * `PlayerPlugin` for movement + animation.
+  * `collision` module defines reusable `Collider` component applied to map assets.
+
+Map Generation Module (`src/map`)
+---------------------------------
+- Submodules: `assets`, `generate`, `models`, `rules`, `sockets`, `tilemap`.
+- `generate.rs`
+  * Configurable grid constants (`GRID_X`, `GRID_Y`, `GRID_Z`, `TILE_SIZE`, etc.).
+  * `map_pixel_dimensions()` derives window size.
+  * `setup_generator()`:
+    - Builds terrain sockets + models via `rules::build_world()`.
+    - Creates `RulesBuilder::new_cartesian_3d` with `Direction::ZForward`.
+    - Configures `GeneratorBuilder` with random seed RNG, MRV heuristic, weighted model selection.
+    - Loads atlas via `assets::prepare_tilemap_handles` and `load_assets`.
+    - Spawns entity bundling `Transform` (centered), `CartesianGrid`, `Generator`, and `NodesSpawner`.
+- `assets.rs`
+  * Defines `SpawnableAsset`, optional `GridDelta` / world offsets, and component hook.
+  * `with_world_offset(Vec3)` lets us elevate sprites (tree canopies) for proper layering.
+  * `TilemapHandles` wraps atlas image + layout; `sprite()` builds `Sprite::from_atlas_image`.
+  * `prepare_tilemap_handles()` loads atlas image from `src/assets/tile_layers/tilemap.png`, builds `TextureAtlasLayout` from static metadata.
+  * `load_assets()` registers `ModelAsset<Sprite>` per model ID using map definition.
+- `models.rs`
+  * `TerrainModelBuilder` ensures `ModelCollection<Cartesian3D>` stays aligned with asset lists; `create_model()` stores assets + returns mutable model ref.
+- `rules.rs`
+  * Layer builders (dirt, grass, yellow grass, water, props) add rotated variants and connection rules using sockets.
+  * Water tiles plus solid props (tree bases, rocks, stumps) attach `Collider` components; canopy sprites lift by `Vec3::new(0., 0., 0.75)` so player can pass “behind” foliage while bases stay blocking.
+  * `build_world()` orchestrates socket creation, model definition, and returns `(Vec<Vec<SpawnableAsset>>, ModelCollection, SocketCollection)`.
+- `sockets.rs`
+  * `TerrainSockets` struct organizes socket IDs (material, layer up/down, special combos).
+  * `create_sockets()` populates via closure capturing `SocketCollection::create()`.
+- `tilemap.rs`
+  * Static `TILEMAP` definition enumerating sprite names with pixel offsets; provides atlas sizing helpers.
+
+Player Module (`src/player`)
+----------------------------
+- `components.rs`
+  * Constants: `TILE_SIZE` (64), `WALK_FRAMES` (9), `MOVE_SPEED` (140), `ANIM_DT` (0.1), `PLAYER_COLLIDER_HALF` (Vec2::new(12, 12)).
+  * Components: marker `Player`, `Facing` enum, `AnimationTimer(Timer)`, `AnimationState` (tracks `facing`, `moving`, `was_moving`).
+  * `AnimationClip` encodes `first/last` frame indices; `DirectionalClips::walk()` maps each `Facing` to clip rows (rows 8-11 in sprite sheet).
+- `systems.rs`
+  * `spawn_player()` loads `male_spritesheet.png`, builds atlas layout grid (`TextureAtlasLayout::from_grid`), spawns sprite with scale 0.8, and positions depth via `player_depth_from_y`.
+  * `move_player()` reads `ButtonInput<KeyCode>` (arrow keys), resolves collisions against world `Collider`s with axis-separated tests, and recomputes depth via `player_depth_from_y`.
+  * `animate_player()` keeps atlas index within active clip, advances frames while moving, resets on stop/start transitions.
+  * `PlayerPlugin` wires startup spawn system + update systems tuple `(move_player, animate_player)`.
+- Assets directory includes `male_spritesheet.png`, `female_spritesheet.png`, and tile atlas under `src/assets/tile_layers`.
+
+Bevy 0.17 API Observations (from project + examples)
+----------------------------------------------------
+- Plugin setup uses tuple syntax: `.add_plugins((DefaultPlugins, ExampleCommonPlugin, ...))` or `.add_plugins(DefaultPlugins.set(...))`.
+- Systems added via schedule-specific `.add_systems(Startup, system_fn)` and `.add_systems(Update, (a, b))`.
+- Components spawned with inline bundles: `commands.spawn((Sprite { ... }, Transform::default(), ...))`.
+- `Camera2d` replaces `Camera2dBundle::default()`.
+- Input handling uses `Res<ButtonInput<KeyCode>>` and `just_pressed`, `pressed`.
+- `Sprite::from_atlas_image` + `TextureAtlas { layout, index }` pattern replaces older bundle constructors.
+- UI/text API uses `Text::new`, `TextSpan`, `Node` with CSS-like positioning; `TextFont`, `TextColor`, `TextLayout`.
+- Examples show new query utilities: `Single<...>` for unique components, message system (`MessageWriter`, `MessageReader`) for input events.
+- Physics (avian2d) integrates via `PhysicsPlugins::default()` and schedules (`FixedUpdate`) for deterministic stepping.
+
+External Example References
+---------------------------
+- `avian/crates/avian2d/examples/*`: illustrate physics plugins, message-based controller patterns, new CCD toggles (`Single` queries), modular plugin organization.
+- `bevy/examples/*`: confirm sprite animation pattern (`AnimationIndices`, `AnimationTimer`), text UI updates, minimal `hello_world.rs` using `.add_systems(Update, system)`.
+
+Usage Notes / How to Reload Context
+-----------------------------------
+- Re-run `cat context.txt` from project root to reload this memo.
+- If CLI session resets, revisit:
+  * Project layout via `ls src`, `cargo metadata --no-deps`.
+  * Player systems/components in `src/player`.
+  * Map generation flow in `src/map/{generate,rules}.rs`.
+  * External examples under `/Users/febinjohnjames/AIBodh/avian/crates/avian2d/examples` and `/Users/febinjohnjames/AIBodh/bevy/examples`.
+- Remember assets live under `src/assets`; window size tied to `map::generate::map_pixel_dimensions()`.
+- Procedural generation uses `bevy_procedural_tilemaps` WFC pipeline with z-stacked layers; sockets ensure compatibility across layers.
+
+Outstanding Notes
+-----------------
+- `ProcGenSimplePlugin::<Cartesian3D, Sprite>` is active; adjustments may need matching generic parameters if assets change.
+- Timers: `AnimationTimer(Timer::from_seconds(ANIM_DT, TimerMode::Repeating))`; pausing animations requires toggling `anim.moving`.
+- Player/world collision uses AABB checks; `ColliderKind` is available for differing behaviors (water vs solid) if needed later.
+- Player depth derives from nearest tile row (`ground_z + 0.25`), while tree canopies carry +0.75 world z offset to stay in front.
+- Window resolution derived from `GRID_X`, `GRID_Y`, `TILE_SIZE`; changes cascade to player/world coordinate expectations.
