@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 pub(crate) const TILE_SIZE: u32 = 64;
 pub(crate) const WALK_FRAMES: usize = 9;
-pub(crate) const MOVE_SPEED: f32 = 140.0;
+pub(crate) const MOVE_SPEED: f32 = 280.0;
 pub(crate) const ANIM_DT: f32 = 0.1;
 pub(crate) const PLAYER_Z: f32 = 20.0;
 

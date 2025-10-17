@@ -110,10 +110,10 @@ pub fn debug_player_position(
     let grid = map.world_to_grid(pos);
     
     // Draw yellow circle around player
-    gizmos.circle_2d(pos, 25.0, Color::srgb(1.0, 1.0, 0.0));
+    gizmos.circle_2d(pos, 50.0, Color::srgb(1.0, 1.0, 0.0));
     
     // NEW: Draw the actual collider circle (8px radius = light yellow)
-    let collider_radius = 12.0;
+    let collider_radius = 24.0;
     gizmos.circle_2d(
         pos, 
         collider_radius, 

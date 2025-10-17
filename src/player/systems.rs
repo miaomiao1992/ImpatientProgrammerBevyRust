@@ -32,7 +32,7 @@ fn spawn_player(
                 index: start_index,
             },
         ),
-        Transform::from_translation(Vec3::new(0., 0., PLAYER_Z)).with_scale(Vec3::splat(0.8)),
+        Transform::from_translation(Vec3::new(0., 0., PLAYER_Z)).with_scale(Vec3::splat(2.0)),
         Player,
         directional_clips,
         AnimationState {
@@ -76,7 +76,7 @@ fn move_player(
         
         // Use robust circle-based collision with swept movement
         // Player collider radius = 12 pixels (3/8 of 32px tile) - increased for safety
-        let collider_radius = 12.0;
+        let collider_radius = 24.0;
         
         let new_pos = if let Some(map) = map.as_ref() {
             // Use swept movement to prevent tunneling and ensure smooth collision
