@@ -76,20 +76,26 @@ fn spawn_player(
 fn find_walkable_spawn_position(map: &CollisionMap) -> Vec3 {
     use rand::Rng;
     
+    // FEET-BASED SPAWN: Ensure player's feet are on a walkable tile
+    // Player scale is 1.2, so sprite height is TILE_SIZE * 1.2 = 76.8
+    // Feet are at: center_y - (sprite_height / 2) = center_y - 38.4
+    const PLAYER_SCALE: f32 = 1.2;
+    const PLAYER_SPRITE_HEIGHT: f32 = TILE_SIZE as f32 * PLAYER_SCALE; // 76.8
+    let feet_offset = PLAYER_SPRITE_HEIGHT / 2.0; // 38.4
+    let collider_radius = 16.0; // Same as movement collision
+    
     // Try to find a walkable position, starting from center and spiraling outward
     let center_x = map.width / 2;
     let center_y = map.height / 2;
     
-    // Convert grid center to world position
+    // Convert grid center to world position (this will be the CENTER of the player)
     let world_center_x = map.grid_origin_x + (center_x as f32 + 0.5) * map.tile_size;
     let world_center_y = map.grid_origin_y + (center_y as f32 + 0.5) * map.tile_size;
     
-    // Check center first
-    if map.in_bounds(center_x, center_y) {
-        let idx = map.xy_idx(center_x, center_y);
-        if map.tiles[idx].is_walkable() {
-            return Vec3::new(world_center_x, world_center_y, PLAYER_Z);
-        }
+    // Check center first - ensure feet position is walkable
+    let center_feet = Vec2::new(world_center_x, world_center_y - feet_offset);
+    if map.is_world_pos_clear_circle(center_feet, collider_radius) {
+        return Vec3::new(world_center_x, world_center_y, PLAYER_Z);
     }
     
     // Spiral outward from center
@@ -105,10 +111,11 @@ fn find_walkable_spawn_position(map: &CollisionMap) -> Vec3 {
                 let y = center_y + dy;
                 
                 if map.in_bounds(x, y) {
-                    let idx = map.xy_idx(x, y);
-                    if map.tiles[idx].is_walkable() {
-                        let world_x = map.grid_origin_x + (x as f32 + 0.5) * map.tile_size;
-                        let world_y = map.grid_origin_y + (y as f32 + 0.5) * map.tile_size;
+                    let world_x = map.grid_origin_x + (x as f32 + 0.5) * map.tile_size;
+                    let world_y = map.grid_origin_y + (y as f32 + 0.5) * map.tile_size;
+                    let feet_pos = Vec2::new(world_x, world_y - feet_offset);
+                    
+                    if map.is_world_pos_clear_circle(feet_pos, collider_radius) {
                         return Vec3::new(world_x, world_y, PLAYER_Z);
                     }
                 }
@@ -122,10 +129,11 @@ fn find_walkable_spawn_position(map: &CollisionMap) -> Vec3 {
         let x = rng.gen_range(0..map.width);
         let y = rng.gen_range(0..map.height);
         
-        let idx = map.xy_idx(x, y);
-        if map.tiles[idx].is_walkable() {
-            let world_x = map.grid_origin_x + (x as f32 + 0.5) * map.tile_size;
-            let world_y = map.grid_origin_y + (y as f32 + 0.5) * map.tile_size;
+        let world_x = map.grid_origin_x + (x as f32 + 0.5) * map.tile_size;
+        let world_y = map.grid_origin_y + (y as f32 + 0.5) * map.tile_size;
+        let feet_pos = Vec2::new(world_x, world_y - feet_offset);
+        
+        if map.is_world_pos_clear_circle(feet_pos, collider_radius) {
             return Vec3::new(world_x, world_y, PLAYER_Z);
         }
     }
@@ -162,27 +170,41 @@ fn move_player(
     if direction != Vec2::ZERO {
         // Calculate the proposed new position
         let delta = direction.normalize() * MOVE_SPEED * time.delta_secs();
-        let current_pos = Vec2::new(transform.translation.x, transform.translation.y);
-        let new_pos = current_pos + delta;
+        let current_center = Vec2::new(transform.translation.x, transform.translation.y);
+        let new_center = current_center + delta;
+        
+        // FEET-BASED COLLISION: Use player's feet position for collision detection
+        // This makes movement feel more natural - player can get closer to obstacles
+        // Player scale is 1.2, so sprite height is TILE_SIZE * 1.2 = 76.8
+        // Feet are at: center_y - (sprite_height / 2) = center_y - 38.4
+        const PLAYER_SCALE: f32 = 1.2;
+        const PLAYER_SPRITE_HEIGHT: f32 = TILE_SIZE as f32 * PLAYER_SCALE; // 76.8
+        let feet_offset = PLAYER_SPRITE_HEIGHT / 2.0; // 38.4
+        
+        let current_feet = Vec2::new(current_center.x, current_center.y - feet_offset);
+        let new_feet = Vec2::new(new_center.x, new_center.y - feet_offset);
         
         // Use robust circle-based collision with swept movement
-        // Player collider radius = 12 pixels (3/8 of 32px tile) - increased for safety
-        let collider_radius = 24.0;
+        // Player collider radius = 16 pixels (reduced for more natural movement with leeway)
+        let collider_radius = 16.0;
         
-        let new_pos = if let Some(map) = map.as_ref() {
+        let new_feet = if let Some(map) = map.as_ref() {
             // Use swept movement to prevent tunneling and ensure smooth collision
-            map.try_move_circle(current_pos, new_pos, collider_radius)
+            map.try_move_circle(current_feet, new_feet, collider_radius)
         } else {
-            new_pos
+            new_feet
         };
         
+        // Convert feet position back to center position
+        let new_center = Vec2::new(new_feet.x, new_feet.y + feet_offset);
+        
         // Only move if position changed (collision prevented perfect movement)
-        let can_move = new_pos != current_pos;
+        let can_move = new_center != current_center;
         
         // Only move if the destination is walkable
         if can_move {
-            transform.translation.x = new_pos.x;
-            transform.translation.y = new_pos.y;
+            transform.translation.x = new_center.x;
+            transform.translation.y = new_center.y;
             anim.moving = true;
 
             // Update facing direction

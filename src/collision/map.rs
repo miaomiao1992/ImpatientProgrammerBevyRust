@@ -89,10 +89,10 @@ impl CollisionMap {
                 }
                 if let Some(t) = self.get_tile(gx, gy) {
                     if !t.is_walkable() {
-                        let effective_radius = if t == TileType::Shore {
-                            radius_world + 0.1 * self.tile_size
-                        } else {
-                            radius_world
+                        let effective_radius = match t {
+                            TileType::Shore => radius_world + 0.1 * self.tile_size, // Shore gets extra buffer
+                            TileType::Tree | TileType::Rock => radius_world + 0.05 * self.tile_size, // Props get small buffer for natural movement
+                            _ => radius_world, // Water and other obstacles stay strict
                         };
                         
                         if self.circle_intersects_tile(world_pos, effective_radius, gx, gy) {
