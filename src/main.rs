@@ -47,8 +47,8 @@ fn main() {
             PlayerPlugin,
         ))
         .init_resource::<CollisionMapBuilt>()
-        .add_systems(Startup, (setup_camera, setup_generator, setup_fog_of_war))
-        .add_systems(Update, (build_collision_map, follow_camera, follow_fog, update_player_depth, configure_camera_projection));
+        .add_systems(Startup, (setup_camera, setup_generator, setup_fog_of_war, configure_camera_projection))
+        .add_systems(Update, (build_collision_map, follow_camera, follow_fog, update_player_depth));
 
     // Debug systems - only in debug builds
     #[cfg(debug_assertions)]

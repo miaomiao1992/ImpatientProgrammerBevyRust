@@ -6,7 +6,9 @@ use bevy::prelude::*;
 /// System to update player depth based on Y position to match tilemap Z system
 /// This mirrors the same Z-depth calculation that bevy_procedural_tilemaps uses
 /// with with_z_offset_from_y(true)
-pub fn update_player_depth(mut player_query: Query<&mut Transform, With<crate::player::Player>>) {
+/// 
+/// OPTIMIZATION: Only runs when player transform actually changes
+pub fn update_player_depth(mut player_query: Query<&mut Transform, (With<crate::player::Player>, Changed<Transform>)>) {
     for mut transform in player_query.iter_mut() {
         let player_center_y = transform.translation.y;
         
