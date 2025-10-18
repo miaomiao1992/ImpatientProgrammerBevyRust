@@ -4,7 +4,7 @@ mod player;
 
 use bevy::{
     prelude::*,
-    window::{Window, WindowPlugin, WindowResolution},
+    window::{Window, WindowPlugin, WindowMode, MonitorSelection},
     reflect::TypePath,
     render::render_resource::AsBindGroup,
     shader::ShaderRef,
@@ -47,8 +47,6 @@ impl Material2d for CircularFogMaterial {
 struct VisionRadius(f32);
 
 fn main() {
-    let window_width = 960.0;
-    let window_height = 720.0;
     let vision_radius = 320.0;
 
     let mut app = App::new();
@@ -63,8 +61,8 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        resolution: WindowResolution::new(window_width as u32, window_height as u32),
-                        resizable: false,
+                        title: "Bevy Game".into(),
+                        mode: WindowMode::BorderlessFullscreen(MonitorSelection::Current),
                         ..default()
                     }),
                     ..default()
@@ -96,6 +94,7 @@ fn main() {
 fn setup_camera(mut commands: Commands) {
     commands.spawn((Camera2d::default(), CameraFollow));
 }
+
 
 fn setup_fog_of_war(
     mut commands: Commands,

@@ -6,11 +6,27 @@ use super::components::{
 };
 use crate::collision::CollisionMap;
 
+/// Resource to track if player has been spawned
+#[derive(Resource, Default)]
+struct PlayerSpawned(bool);
+
 fn spawn_player(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    map: Option<Res<CollisionMap>>,
+    mut player_spawned: ResMut<PlayerSpawned>,
+    player_query: Query<(), With<Player>>,
 ) {
+    // Skip if player already spawned
+    if player_spawned.0 || !player_query.is_empty() {
+        return;
+    }
+    
+    // Only spawn if collision map is ready
+    if map.is_none() {
+        return;
+    }
     let texture = asset_server.load("male_spritesheet.png");
     let layout = atlas_layouts.add(TextureAtlasLayout::from_grid(
         UVec2::splat(TILE_SIZE),
@@ -24,6 +40,14 @@ fn spawn_player(
     let directional_clips = DirectionalClips::walk(WALK_FRAMES);
     let start_index = directional_clips.clip(facing).start();
 
+    // Find a walkable spawn position
+    let spawn_pos = if let Some(map) = map {
+        find_walkable_spawn_position(&map)
+    } else {
+        // Fallback to center if no map available yet
+        Vec3::new(0., 0., PLAYER_Z)
+    };
+
     commands.spawn((
         Sprite::from_atlas_image(
             texture,
@@ -32,7 +56,7 @@ fn spawn_player(
                 index: start_index,
             },
         ),
-        Transform::from_translation(Vec3::new(0., 0., PLAYER_Z)).with_scale(Vec3::splat(1.2)),
+        Transform::from_translation(spawn_pos).with_scale(Vec3::splat(1.2)),
         Player,
         directional_clips,
         AnimationState {
@@ -42,6 +66,73 @@ fn spawn_player(
         },
         AnimationTimer(Timer::from_seconds(ANIM_DT, TimerMode::Repeating)),
     ));
+    
+    // Mark as spawned
+    player_spawned.0 = true;
+    info!("🎮 Player spawned at walkable position: ({:.1}, {:.1})", spawn_pos.x, spawn_pos.y);
+}
+
+/// Find a walkable spawn position on the map
+fn find_walkable_spawn_position(map: &CollisionMap) -> Vec3 {
+    use rand::Rng;
+    
+    // Try to find a walkable position, starting from center and spiraling outward
+    let center_x = map.width / 2;
+    let center_y = map.height / 2;
+    
+    // Convert grid center to world position
+    let world_center_x = map.grid_origin_x + (center_x as f32 + 0.5) * map.tile_size;
+    let world_center_y = map.grid_origin_y + (center_y as f32 + 0.5) * map.tile_size;
+    
+    // Check center first
+    if map.in_bounds(center_x, center_y) {
+        let idx = map.xy_idx(center_x, center_y);
+        if map.tiles[idx].is_walkable() {
+            return Vec3::new(world_center_x, world_center_y, PLAYER_Z);
+        }
+    }
+    
+    // Spiral outward from center
+    for radius in 1..=std::cmp::min(map.width, map.height) / 2 {
+        for dx in -radius..=radius {
+            for dy in -radius..=radius {
+                // Only check the perimeter of current radius
+                if dx.abs() != radius && dy.abs() != radius {
+                    continue;
+                }
+                
+                let x = center_x + dx;
+                let y = center_y + dy;
+                
+                if map.in_bounds(x, y) {
+                    let idx = map.xy_idx(x, y);
+                    if map.tiles[idx].is_walkable() {
+                        let world_x = map.grid_origin_x + (x as f32 + 0.5) * map.tile_size;
+                        let world_y = map.grid_origin_y + (y as f32 + 0.5) * map.tile_size;
+                        return Vec3::new(world_x, world_y, PLAYER_Z);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Fallback: random walkable position
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 { // Try up to 100 random positions
+        let x = rng.gen_range(0..map.width);
+        let y = rng.gen_range(0..map.height);
+        
+        let idx = map.xy_idx(x, y);
+        if map.tiles[idx].is_walkable() {
+            let world_x = map.grid_origin_x + (x as f32 + 0.5) * map.tile_size;
+            let world_y = map.grid_origin_y + (y as f32 + 0.5) * map.tile_size;
+            return Vec3::new(world_x, world_y, PLAYER_Z);
+        }
+    }
+    
+    // Ultimate fallback: center of map
+    warn!("Could not find walkable spawn position, using center");
+    Vec3::new(world_center_x, world_center_y, PLAYER_Z)
 }
 
 fn move_player(
@@ -169,7 +260,7 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player)
-            .add_systems(Update, (move_player, animate_player));
+        app.init_resource::<PlayerSpawned>()
+            .add_systems(Update, (spawn_player, move_player, animate_player));
     }
 }

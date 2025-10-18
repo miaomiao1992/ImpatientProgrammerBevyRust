@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 bevy = "0.17.2"
 bevy_procedural_tilemaps = "0.1.3"
+rand = "0.8"
