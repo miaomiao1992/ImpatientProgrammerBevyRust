@@ -2,7 +2,7 @@
 /debug
 /target
 **/*.rs.bk
-
+**/target
 # Byproducts of coverage and profiling
 *.profraw
 
