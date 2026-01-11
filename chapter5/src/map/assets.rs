@@ -1,7 +1,9 @@
 use bevy::{prelude::*};
 use bevy_procedural_tilemaps::prelude::*;
 use crate::collision::{TileMarker, TileType};
-use crate::map::tilemap::TILEMAP; // <--- line update alert
+use crate::map::tilemap::TILEMAP; 
+use crate::inventory::{ItemKind, Pickable};
+
 
 
 #[derive(Clone)]
@@ -14,6 +16,8 @@ pub struct SpawnableAsset {
     offset: Vec3,
     /// Function to add custom components (like collision, physics, etc.)
     tile_type: Option<TileType>,
+
+    pickable: Option<ItemKind>, 
 }
 
 impl SpawnableAsset {
@@ -23,6 +27,7 @@ impl SpawnableAsset {
             grid_offset: GridDelta::new(0, 0, 0),
             offset: Vec3::ZERO,
             tile_type: None, // Default: no extra components
+            pickable: None, 
         }
     }
 
@@ -33,6 +38,11 @@ impl SpawnableAsset {
 
     pub fn with_tile_type(mut self, tile_type: TileType) -> Self { 
         self.tile_type = Some(tile_type);
+        self
+    }
+
+    pub fn with_pickable(mut self, kind: ItemKind) -> Self {
+        self.pickable = Some(kind);
         self
     }
 }
@@ -80,7 +90,8 @@ pub fn load_assets(
                 sprite_name,
                 grid_offset,
                 offset,
-                tile_type, // Line update alert
+                tile_type,
+                pickable, // Add this line
             } = asset_def;
 
             let Some(atlas_index) = TILEMAP.sprite_index(sprite_name) else {
@@ -88,7 +99,7 @@ pub fn load_assets(
             };
 
             // Create the spawner function that adds components
-            let spawner = create_spawner(tile_type); // Line update alert
+            let spawner = create_spawner(tile_type, pickable); // Line update alert
 
             models_assets.add(
                 model_index,
@@ -96,7 +107,7 @@ pub fn load_assets(
                     assets_bundle: tilemap_handles.sprite(atlas_index),
                     grid_offset,
                     world_offset: offset,
-                    spawn_commands: spawner, 
+                    spawn_commands: spawner,
                 },
             );
         }
@@ -106,33 +117,66 @@ pub fn load_assets(
 
 fn create_spawner(
     tile_type: Option<TileType>,
+    pickable: Option<ItemKind>,
 ) -> fn(&mut EntityCommands) {
-    match tile_type {
+    match (tile_type, pickable) {
         // Tile types without pickable
-        Some(TileType::Dirt) => |e: &mut EntityCommands| {
+        (Some(TileType::Dirt), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::Dirt));
         },
-        Some(TileType::Grass) => |e: &mut EntityCommands| {
+        (Some(TileType::Grass), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::Grass));
         },
-        Some(TileType::YellowGrass) => |e: &mut EntityCommands| {
+        (Some(TileType::YellowGrass), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::YellowGrass));
         },
-        Some(TileType::Water) => |e: &mut EntityCommands| {
+        (Some(TileType::Water), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::Water));
         },
-        Some(TileType::Shore) => |e: &mut EntityCommands| {
+        (Some(TileType::Shore), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::Shore));
         },
-        Some(TileType::Tree) => |e: &mut EntityCommands| {
+        (Some(TileType::Tree), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::Tree));
         },
-        Some(TileType::Rock) => |e: &mut EntityCommands| {
+        (Some(TileType::Rock), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::Rock));
         },
-        Some(TileType::Empty) => |e: &mut EntityCommands| {
+        (Some(TileType::Empty), None) => |e: &mut EntityCommands| {
             e.insert(TileMarker::new(TileType::Empty));
         },
+
+        // Pickable plants (with grass tile type)
+        (Some(TileType::Grass), Some(ItemKind::Plant1)) => |e: &mut EntityCommands| {
+            e.insert((TileMarker::new(TileType::Grass), Pickable::new(ItemKind::Plant1)));
+        },
+        (Some(TileType::Grass), Some(ItemKind::Plant2)) => |e: &mut EntityCommands| {
+            e.insert((TileMarker::new(TileType::Grass), Pickable::new(ItemKind::Plant2)));
+        },
+        (Some(TileType::Grass), Some(ItemKind::Plant3)) => |e: &mut EntityCommands| {
+            e.insert((TileMarker::new(TileType::Grass), Pickable::new(ItemKind::Plant3)));
+        },
+        (Some(TileType::Grass), Some(ItemKind::Plant4)) => |e: &mut EntityCommands| {
+            e.insert((TileMarker::new(TileType::Grass), Pickable::new(ItemKind::Plant4)));
+        },
+        
+        // Pickable without tile type
+        (None, Some(ItemKind::Plant1)) => |e: &mut EntityCommands| {
+            e.insert(Pickable::new(ItemKind::Plant1));
+        },
+        (None, Some(ItemKind::Plant2)) => |e: &mut EntityCommands| {
+            e.insert(Pickable::new(ItemKind::Plant2));
+        },
+        (None, Some(ItemKind::Plant3)) => |e: &mut EntityCommands| {
+            e.insert(Pickable::new(ItemKind::Plant3));
+        },
+        (None, Some(ItemKind::Plant4)) => |e: &mut EntityCommands| {
+            e.insert(Pickable::new(ItemKind::Plant4));
+        },
+        (None, Some(ItemKind::TreeStump)) => |e: &mut EntityCommands| {
+            e.insert(Pickable::new(ItemKind::TreeStump));
+        },
+
         // Default: no components
         _ => |_: &mut EntityCommands| {},
     }

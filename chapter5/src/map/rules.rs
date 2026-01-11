@@ -4,6 +4,7 @@ use crate::collision::TileType;
 use crate::map::models::TerrainModelBuilder;
 use crate::map::sockets::*;
 use bevy_procedural_tilemaps::prelude::*;
+use crate::inventory::ItemKind;
 
 fn build_dirt_layer(
     terrain_model_builder: &mut TerrainModelBuilder,
@@ -578,7 +579,7 @@ pub fn build_props_layer(
     );
     terrain_model_builder.create_model(
         stump_prop.clone(),
-        vec![SpawnableAsset::new("tree_stump_2").with_tile_type(TileType::Tree)],
+        vec![SpawnableAsset::new("tree_stump_2").with_tile_type(TileType::Tree).with_pickable(ItemKind::TreeStump)],
     );
     terrain_model_builder.create_model(
         stump_prop.clone(),
@@ -592,10 +593,10 @@ pub fn build_props_layer(
     terrain_model_builder.create_model(rock_prop.clone(), vec![SpawnableAsset::new("rock_4").with_tile_type(TileType::Rock)]);
 
     // Plants
-    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_1").with_tile_type(TileType::Grass)]);
-    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_2").with_tile_type(TileType::Grass)]);
-    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_3").with_tile_type(TileType::Grass)]);
-    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_4").with_tile_type(TileType::Grass)]);
+    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_1").with_tile_type(TileType::Grass).with_pickable(ItemKind::Plant1)]);
+    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_2").with_tile_type(TileType::Grass).with_pickable(ItemKind::Plant2)]);
+    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_3").with_tile_type(TileType::Grass).with_pickable(ItemKind::Plant3)]);
+    terrain_model_builder.create_model(plant_prop.clone(), vec![SpawnableAsset::new("plant_4").with_tile_type(TileType::Grass).with_pickable(ItemKind::Plant4)]);
 
     // Add connection rules
     socket_collection.add_connections(vec![

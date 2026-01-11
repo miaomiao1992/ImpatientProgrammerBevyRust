@@ -10,6 +10,11 @@ pub mod player {
     pub const PLAYER_SCALE: f32 = 0.8;
 }
 
+pub mod pickup {
+    /// Default radius for item pickup detection (in world units)
+    pub const DEFAULT_RADIUS: f32 = 40.0;
+}
+
 /// Map/terrain configuration
 pub mod map {
     /// Size of a single tile in world units
