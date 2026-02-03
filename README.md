@@ -53,8 +53,18 @@ cd chapter1  # or chapter2, chapter3, chapter4, chapter5, chapter6
 cargo run
 ```
 
+Note for Linux users on Wayland: if you see rendering artifacts, run the app with the X11 backend:
+
+```bash
+WINIT_UNIX_BACKEND=x11 WAYLAND_DISPLAY= cargo run
+```
+
 ## Community
 
 - [Join our Discord community](https://discord.com/invite/cD9qEsSjUH) to get notified when new chapters drop
 - Connect with me on [Twitter/X](https://x.com/heyfebin)
 - Connect with me on [LinkedIn](https://www.linkedin.com/in/febinjohnjames/)
+
+## Assets
+
+- assets/tile_layers: “16x16 Game Assets” by George Bailey, CC-BY 4.0.
